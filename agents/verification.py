@@ -1,51 +1,85 @@
-import os
 import json
 from openai import OpenAI
-from dotenv import load_dotenv
 
-load_dotenv()
+print("🔥 NEW VERIFICATION FILE LOADED 🔥")
 
-def verify_answer(query, answer, context_docs):
+client = OpenAI()
 
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-    context = "\n\n".join(context_docs)
+def verify_answer(query, answer, docs):
+    """
+    Verifies whether the generated answer is supported by retrieved documents.
+    Returns a structured JSON dictionary.
+    """
 
-    prompt = f"""
-You are evaluating a RAG system.
+    # Convert LangChain documents into plain text
+    try:
+        context = "\n\n".join([doc.page_content for doc in docs])
+    except Exception as e:
+        print("Context build error:", e)
+        context = ""
 
-Important:
-If the context does NOT contain information needed to answer the question,
-and the model correctly says "I don't know" or refuses,
-this should be considered FULLY SUPPORTED and aligned behavior.
+    system_prompt = """
+You are a strict factual verification system.
 
-Evaluate:
+You must return ONLY valid JSON in this exact format:
 
-Return JSON:
-{{
-  "supported": true/false,
-  "alignment_score": 0-100,
-  "issues": "explanation"
-}}
+{
+  "supported": true or false,
+  "alignment_score": number between 0 and 100,
+  "issues": "short explanation"
+}
 
+Rules:
+- No markdown
+- No explanation outside JSON
+- No extra text
+- Must be valid parsable JSON
+"""
+
+    user_prompt = f"""
 Question:
 {query}
 
-Context:
-{context}
-
 Answer:
 {answer}
+
+Context:
+{context}
 """
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "Return only valid JSON."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0,
-        response_format={"type": "json_object"}
-    )
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+        )
 
-    return json.loads(response.choices[0].message.content)
+        raw_content = response.choices[0].message.content
+
+        print("========== RAW VERIFIER OUTPUT ==========")
+        print(raw_content)
+        print("=========================================")
+
+        # Parse JSON safely
+        parsed = json.loads(raw_content)
+
+        # Safety fallback in case model returns incomplete keys
+        return {
+            "supported": parsed.get("supported", False),
+            "alignment_score": parsed.get("alignment_score", 0),
+            "issues": parsed.get("issues", "No explanation provided")
+        }
+
+    except Exception as e:
+        print("❌ VERIFICATION ERROR:", str(e))
+
+        return {
+            "supported": False,
+            "alignment_score": 0,
+            "issues": f"Verification parsing failed: {str(e)}"
+        }
