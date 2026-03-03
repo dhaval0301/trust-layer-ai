@@ -1,88 +1,126 @@
+
+---
+
+````markdown
 # TrustLayer AI
-Self-Reflective Multi-Agent RAG System
 
-TrustLayer AI is a Retrieval-Augmented Generation (RAG) system that not only generates answers from documents but evaluates their alignment with retrieved context and assigns a structured confidence score.
+TrustLayer AI is a self-reflective multi-agent Retrieval-Augmented Generation (RAG) system that evaluates its own answers before presenting a final confidence score.
 
-The system introduces verification and reflection layers to improve reliability and reduce hallucination risk.
+Instead of stopping at retrieval and generation, it introduces verification and reflection layers to improve reliability and reduce hallucinations.
 
 ---
 
 ## Overview
 
-Traditional RAG pipelines retrieve context and generate answers.  
-TrustLayer AI extends this by:
+Traditional RAG pipelines retrieve relevant documents and generate an answer.  
+TrustLayer AI extends this by adding:
 
-- Verifying factual alignment between answer and retrieved documents
-- Assigning a quantitative alignment score
-- Computing a final confidence score
-- Classifying response risk level
-- Triggering self-reflection when alignment is low
-- Displaying transparent source excerpts
+- A verification agent that checks factual alignment  
+- A reflection agent that improves weak responses  
+- A structured confidence scoring system  
+- Risk-level classification  
+
+The goal is to build a reliability layer on top of standard RAG systems.
+
+##Demo Link : https://huggingface.co/spaces/dhaval0003/trustlayer_ai
 
 ---
 
 ## Architecture
 
-User Query  
-→ Vector Retrieval (FAISS + Embeddings)  
-→ Generation Agent  
-→ Verification Agent (Structured JSON evaluation)  
-→ Reflection Agent (if alignment below threshold)  
-→ Final Confidence Score  
+The system consists of five stages:
+
+1. **Query Input**  
+   User submits a question.
+
+2. **Retrieval Layer**  
+   Top-k relevant chunks are retrieved using FAISS vector similarity search.
+
+3. **Generation Agent**  
+   An answer is generated using retrieved context.
+
+4. **Verification Agent**  
+   The answer is evaluated for factual alignment with the retrieved sources.
+
+5. **Reflection Agent**  
+   If alignment is weak, the system rewrites and re-verifies the answer.
 
 ---
 
-## Confidence Model
+## Scoring Model
 
-Final Confidence is calculated as:
+### Retrieval Score
 
-Final Score = (0.4 × Retrieval Score) + (0.6 × Alignment Score)
+FAISS returns similarity distance scores (lower is better).  
+The system converts distance into a 0–100 quality score:
+
+R = clip(100 − average_distance, 0, 100)
+
+---
+
+### Alignment Score
+
+The verification agent evaluates:
+
+- Whether the answer is supported by retrieved documents  
+- Whether claims are grounded in evidence  
+- Whether inconsistencies exist  
+
+It produces:
+
+- alignment_score (0–100)  
+- supported (True/False)  
+- issues (explanation)
+
+---
+
+### Final Confidence
+
+Final confidence is computed using weighted averaging:
+
+C = 0.4R + 0.6A
 
 Where:
 
-- Retrieval Score represents semantic similarity strength
-- Alignment Score represents factual grounding with source context
-- Risk Level is derived from the final score (Low / Medium / High)
+- R = Retrieval Score  
+- A = Alignment Score  
+- C = Final Confidence  
+
+Alignment is weighted higher to prioritize factual correctness over similarity.
+
+---
+
+### Risk Classification
+
+- High Risk: C < 50  
+- Medium Risk: 50 ≤ C < 80  
+- Low Risk: C ≥ 80  
+
+This prevents overconfident hallucinated answers.
 
 ---
 
 ## Features
 
-- Semantic search using FAISS
-- LLM-based grounded answer generation
-- Structured JSON-based verification
-- Automatic reflection for low-confidence responses
-- Risk-aware output classification
-- Transparent source display
-- Optional custom PDF upload and dynamic indexing
+- Multi-agent RAG architecture  
+- Self-verification loop  
+- Reflection-based answer improvement  
+- Confidence scoring system  
+- Risk-level estimation  
+- Optional PDF upload for dynamic indexing  
+- Gradio-based interactive UI  
 
 ---
 
-## Technology Stack
+## Tech Stack
 
-- Python
-- Streamlit
-- OpenAI API
-- LangChain
-- FAISS
-- Vector embeddings
-
----
-
-## Project Structure
-
-trustlayer-ai/
-│
-├── app.py  
-├── agents/  
-│   ├── generation.py  
-│   ├── verification.py  
-│   └── reflection.py  
-│
-├── rag/  
-├── faiss_index/  
-├── requirements.txt  
-└── README.md  
+- Python  
+- Gradio  
+- OpenAI API  
+- LangChain  
+- FAISS  
+- PyPDF  
+- RecursiveCharacterTextSplitter  
 
 ---
 
@@ -90,41 +128,65 @@ trustlayer-ai/
 
 Clone the repository:
 
-git clone https://github.com/yourusername/trustlayer-ai.git  
-cd trustlayer-ai  
+```bash
+git clone https://github.com/your-username/trustlayer-ai.git
+cd trustlayer-ai
+````
+
+Create virtual environment:
+
+```bash
+python -m venv venv
+source venv/bin/activate
+```
 
 Install dependencies:
 
-pip install -r requirements.txt  
+```bash
+pip install -r requirements.txt
+```
 
-Set environment variable:
+Set your OpenAI API key:
 
-export OPENAI_API_KEY="your-api-key"
+```bash
+export OPENAI_API_KEY=your_key_here
+```
 
 Run the application:
 
-streamlit run app.py  
+```bash
+python app.py
+```
 
 ---
 
-## Deployment
+## Example Test Prompt
 
-The application can be deployed using Hugging Face Spaces (Streamlit SDK).  
-Ensure the OPENAI_API_KEY is added in the Space settings under Secrets.
+```
+What are the two training stages in Constitutional AI and why are they important?
+```
 
 ---
 
-## Example Use Case
+## Why This Project
 
-The system has been tested using research papers such as Constitutional AI and fairness literature.  
-It evaluates whether generated answers are grounded in retrieved documents and assigns structured confidence scores accordingly.
+Large language models often produce confident but unsupported answers.
+TrustLayer AI demonstrates how multi-agent evaluation and reflection can create more reliable AI systems.
+
+The focus is on building a structured reliability layer on top of RAG pipelines.
 
 ---
 
 ## Future Improvements
 
-- Citation highlighting within generated answers
-- Advanced hallucination detection metrics
-- Multi-document evaluation benchmarking
-- Confidence calibration research
-- Adversarial robustness testing
+* Retrieval calibration improvements
+* Cross-document contradiction detection
+* Citation highlighting
+* Adaptive confidence weighting
+* Research-grade evaluation metrics
+
+---
+
+
+Tell me your target audience.
+```
